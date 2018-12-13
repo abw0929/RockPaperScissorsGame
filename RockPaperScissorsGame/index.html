@@ -2,12 +2,29 @@
 <html>
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title></title>
+    <style>
+
+        html, body, canvas {
+            width: 100%;
+            height: 100%;
+            margin: 0px;
+            padding: 0px;
+            overflow: hidden;
+        }
+
+        .noGap {
+            margin: 0px;
+            padding: 0px;
+        }
+
+    </style>
 </head>
 <body>
 
-    <canvas id="cvMain" width="1000" height="800" style="border: 1px solid grey;"></canvas>
-    <div id="divNewPlayer" style="width: 300px; padding: 20px; border: 1px solid grey; background-color: white; position: absolute; top: 200px; left: 300px;">
+    <canvas id="cvMain"></canvas>
+    <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top: 200px; left: calc(50% - 160px);">
         玩家名字：<input id="ipName" type="text" /><br />
         玩家性別：<input id="ipGenderMale" name="ipGender" type="radio" value="Male" checked="checked" />男
                   <input id="ipGenderFemale" name="ipGender" type="radio" value="Female" />女<br />
@@ -17,9 +34,9 @@
         <input id="ipStartGame" type="button" value="開始遊戲" onclick="onStartGame();" />
         <label id="lbStartGameMsg" style="color: red;"></label>
     </div>
-    <div id="divHistory" style="width: 500px; position: absolute; top: 10px; left: 10px; display: none;"></div>
-    <div id="divChat" style="width: 500px; position: absolute; top: 760px; left: 20px; display: none;">
-        <input id="ipChatMessage" type="text" style="width: 300px;" maxlength="60" />&nbsp;&nbsp;
+    <div id="divHistory" class="noGap" style="width: 300px; position: absolute; top: 10px; left: 10px; display: none;"></div>
+    <div id="divChat" class="noGap" style="width: 300px; position: absolute; bottom: 40px; left: 20px; display: none;">
+        <input id="ipChatMessage" type="text" style="width: 200px;" maxlength="60" />&nbsp;&nbsp;
         <input id="ipChatSend" type="button" value="送出" onclick="onSendChat();" />
     </div>
     
@@ -42,10 +59,14 @@
         var moveLeft = false;
         var moveRight = false;
 
+        var roomW = 1000;
+        var roomH = 1000;
+
         var myX = 500;
-        var myY = 400;
+        var myY = 500;
 
         $(function () {
+            onResize();
             initSocket();
         });
 
@@ -115,7 +136,7 @@
                         BodyColor: $("#ipBodyColor").val(),
                         Score: "0",
                         IsMe: "False",
-                        Pos: { X: "500", Y: "400" }
+                        Pos: { X: myX, Y: myY }
                     }
                 });
             }
@@ -178,18 +199,26 @@
             if (gameState !== "gaming")
                 return;
 
-            movePlayer();
-
             if (rerender)
                 renderMain();
+            movePlayer();
+
         }, 40);
 
         window.onkeydown = onKeyDown;
         window.onkeyup = onKeyUp;
+        window.onresize = onResize;
 
         function renderMain() {
 
-            context.clearRect(0, 0, 1000, 800);
+            var transX = canvas.width / 2 - myX;
+            var transY = canvas.height / 2 - myY;
+
+            context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+            context.translate(transX, transY);
+            context.beginPath();
+            context.rect(0, 0, roomW, roomH);
+            context.stroke();
 
             sortPlayersByY();
 
@@ -197,6 +226,8 @@
                 var player = allPlayers[i];
                 drawPlayer(player);
             }
+
+            context.setTransform(1, 0, 0, 1, 0, 0);
 
             rerender = false;
         }
@@ -301,6 +332,14 @@
             }
         }
 
+        function onResize(event) {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            if (gameState === "gaming")
+                renderMain();
+        }
+
         function movePlayer() {
             if (!moveLeft && !moveRight && !moveUp && !moveDown)
                 return;
@@ -312,14 +351,14 @@
             if (moveLeft && myX > 20) {
                 myX -= moveSpeed;
                 moved = true;
-            } else if (moveRight && myX < 980) {
+            } else if (moveRight && myX < roomW - 20) {
                 myX += moveSpeed;
                 moved = true;
             }
             if (moveUp && myY > 20) {
                 myY -= moveSpeed;
                 moved = true;
-            } else if (moveDown && myY < 780) {
+            } else if (moveDown && myY < roomH - 20) {
                 myY += moveSpeed;
                 moved = true;
             }
