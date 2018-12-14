@@ -6,12 +6,23 @@
     <title></title>
     <style>
 
-        html, body, canvas {
+        html, body {
             width: 100%;
             height: 100%;
             margin: 0px;
             padding: 0px;
             overflow: hidden;
+        }
+
+        #divJoyStick {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            z-index: 1;
         }
 
         .noGap {
@@ -23,26 +34,29 @@
 </head>
 <body>
 
-    <canvas id="cvMain"></canvas>
-    <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top: 200px; left: calc(50% - 160px);">
+    <div id="divJoyStick" style="display: none;"></div>
+    <canvas id="cvMain" style="position: absolute; top: 0;"></canvas>
+    <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top: 200px; left: calc(50% - 160px); z-index: 2;">
         玩家名字：<input id="ipName" type="text" /><br />
         玩家性別：<input id="ipGenderMale" name="ipGender" type="radio" value="Male" checked="checked" />男
                   <input id="ipGenderFemale" name="ipGender" type="radio" value="Female" />女<br />
         頭髮顏色：<input id="ipHairColor" type="color" /><br />
         衣服顏色：<input id="ipBodyColor" type="color" /><br />
         <br />
-        <input id="ipStartGame" type="button" value="開始遊戲" onclick="onStartGame();" />
+        <input id="ipStartGame" type="button" value="開始遊戲" onclick="sendStartGame();" />
         <label id="lbStartGameMsg" style="color: red;"></label>
     </div>
-    <div id="divHistory" class="noGap" style="width: 300px; position: absolute; top: 10px; left: 10px; display: none;"></div>
-    <div id="divChat" class="noGap" style="width: 300px; position: absolute; bottom: 40px; left: 20px; display: none;">
+    <div id="divHistory" class="noGap" style="width: 300px; height: 200px; overflow-y: auto; overflow-x: hidden; position: absolute; top: 10px; left: 10px;"></div>
+    <div id="divChat" class="noGap" style="width: 300px; position: absolute; bottom: 40px; left: 20px; display: none; z-index: 2;">
         <input id="ipChatMessage" type="text" style="width: 200px;" maxlength="60" />&nbsp;&nbsp;
-        <input id="ipChatSend" type="button" value="送出" onclick="onSendChat();" />
+        <input id="ipChatSend" type="button" value="送出" onclick="sendChat();" />
     </div>
     
     <script src="Scripts/jquery-3.3.1.min.js"></script>
+    <script src="Scripts/virtualjoystick.js"></script>
     <script>
         var socket;
+        var myId;
         var allPlayers = [];
         var allPlayersMap = {};
         var allTalksMap = {};
@@ -62,11 +76,19 @@
         var roomW = 1000;
         var roomH = 1000;
 
-        var myX = 500;
-        var myY = 500;
+        var myX = 0;
+        var myY = 0;
+        var myReceiveX = 0;
+        var myReceiveY = 0;
+
+        var joystick = new VirtualJoystick({
+            container: document.getElementById('divJoyStick'),
+            mouseSupport: true,
+        });
 
         $(function () {
             onResize();
+            randomPlayer();
             initSocket();
         });
 
@@ -80,7 +102,8 @@
 
             socket.addEventListener("close", function (evt) {
                 gameState = "disconnected";
-                $("#divHistory").prepend('Connection was closed. :' + evt.reason + '<br />');
+                $("#divHistory").prepend('Connection was closed.' + evt.reason + '<br />');
+                resetGame();
             }, false);
 
             socket.addEventListener("message", function (evt) {
@@ -89,8 +112,23 @@
 
             socket.addEventListener("error", function (evt) {
                 gameState = "disconnected";
-                $("#divHistory").prepend('Error : ' + evt.message + '<br />');
+                $("#divHistory").prepend('Error.' + evt.message + '<br />');
             }, false);
+        }
+
+        function randomPlayer() {
+            $("#ipHairColor").val(getRandomColor());
+            $("#ipBodyColor").val(getRandomColor());
+        }
+
+        function resetGame() {
+            myId = "";
+            gameState = "none";
+            $("#divNewPlayer").fadeIn(200);
+            $("#divChat").fadeOut(200);
+            $("#divJoyStick").hide();
+
+            rerender = true;
         }
 
         function onMessage(data) {
@@ -101,8 +139,10 @@
                     break;
                 case "NewPlayerOK":
                     gameState = "gaming";
+                    myId = data.Id;
                     $("#divNewPlayer").fadeOut(200);
                     $("#divChat").fadeIn(200);
+                    $("#divJoyStick").show();
                     break;
                 case "NewPlayerFail":
                     $("#lbStartGameMsg").text('腳色名稱重複');
@@ -125,8 +165,13 @@
             }
         }
 
-        function onStartGame() {
-            if (gameState === "connected") {
+        function sendStartGame() {
+            if (gameState === "connected" && $("#ipName").val() !== "") {
+
+                var myPos = getRandomPos();
+                myX = myReceiveX = myPos.X;
+                myY = myReceiveY = myPos.Y;
+
                 send({
                     Header: "NewPlayer",
                     Player: {
@@ -136,14 +181,14 @@
                         BodyColor: $("#ipBodyColor").val(),
                         Score: "0",
                         IsMe: "False",
-                        Pos: { X: myX, Y: myY }
+                        Pos: myPos,
                     }
                 });
             }
         }
 
-        function onSendChat() {
-            if (gameState === "gaming") {
+        function sendChat() {
+            if (gameState === "gaming" && $("#ipChatMessage").val() !== "") {
                 send({
                     Header: "Talk",
                     Message: $("#ipChatMessage").val()
@@ -175,6 +220,10 @@
         function onPlayerMove(data) {
             if (allPlayersMap.hasOwnProperty(data.Id)) {
                 allPlayersMap[data.Id].Pos = data.To;
+                if (data.Id === myId) {
+                    myReceiveX = data.To.X;
+                    myReceiveY = data.To.Y;
+                }
                 rerender = true;
             }
         }
@@ -211,12 +260,26 @@
 
         function renderMain() {
 
-            var transX = canvas.width / 2 - myX;
-            var transY = canvas.height / 2 - myY;
+            var transX = canvas.width / 2 - myReceiveX;
+            var transY = canvas.height / 2 - myReceiveY;
 
             context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
             context.translate(transX, transY);
+
             context.beginPath();
+            context.strokeStyle = "lightgrey";
+            for (var i = 1; i < roomW / 100; i++) {
+                context.moveTo(i * 100, 0);
+                context.lineTo(i * 100, roomH);
+            }
+            for (var i = 1; i < roomH / 100; i++) {
+                context.moveTo(0, i * 100);
+                context.lineTo(roomW, i * 100);
+            }
+            context.stroke();
+
+            context.beginPath();
+            context.strokeStyle = "black";
             context.rect(0, 0, roomW, roomH);
             context.stroke();
 
@@ -310,7 +373,7 @@
             }
 
             if (event.keyCode === 13) {
-                onSendChat();
+                sendChat();
             }
         }
 
@@ -341,24 +404,22 @@
         }
 
         function movePlayer() {
-            if (!moveLeft && !moveRight && !moveUp && !moveDown)
-                return;
 
             var myFrom = { X: myX, Y: myY };
             var myTo = {};
             var moved = false;
 
-            if (moveLeft && myX > 20) {
+            if ((moveLeft || joystick.left()) && myX > 20) {
                 myX -= moveSpeed;
                 moved = true;
-            } else if (moveRight && myX < roomW - 20) {
+            } else if ((moveRight || joystick.right()) && myX < roomW - 20) {
                 myX += moveSpeed;
                 moved = true;
             }
-            if (moveUp && myY > 20) {
+            if ((moveUp || joystick.up()) && myY > 20) {
                 myY -= moveSpeed;
                 moved = true;
-            } else if (moveDown && myY < roomH - 20) {
+            } else if ((moveDown || joystick.down()) && myY < roomH - 20) {
                 myY += moveSpeed;
                 moved = true;
             }
@@ -372,6 +433,31 @@
                     To: myTo
                 });
             }
+        }
+
+        function getRandomPos() {
+            var minX = 20;
+            var minY = 20;
+            var maxX = roomW - 20;
+            var maxY = roomH - 20;
+            var disX = maxX - minX;
+            var disY = maxY - minY;
+
+            var randX = Math.floor(Math.random() * (disX / moveSpeed));
+            var randY = Math.floor(Math.random() * (disY / moveSpeed));
+
+            randX = randX * moveSpeed + minX;
+            randY = randY * moveSpeed + minY;
+
+            return { X: randX, Y: randY };
+        }
+
+        function getRandomColor() {
+            var r = Math.floor(Math.random() * 256).toString(16);
+            var g = Math.floor(Math.random() * 256).toString(16);
+            var b = Math.floor(Math.random() * 256).toString(16);
+
+            return "#" + r + g + b;
         }
 
         function send(obj) {
