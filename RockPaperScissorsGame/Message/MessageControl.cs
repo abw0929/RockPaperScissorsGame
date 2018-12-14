@@ -67,7 +67,7 @@ namespace RockPaperScissorsGame.Message
                     }
                 case "GameOver":
                     {
-                        ReceiveTalk(message);
+                        ReceiveGameOver(message);
                         break;
                     }
             }

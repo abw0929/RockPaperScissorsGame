@@ -96,16 +96,19 @@
 
         function initSocket() {
             socket = new WebSocket("ws://teach.itpison.com/MyChatRoom/WebSocketServer.ashx");
+            //socket = new WebSocket("ws://localhost:49876/WebSocketServer.ashx");
 
             socket.addEventListener("open", function (evt) {
                 gameState = "connected";
                 writeMessage('Connection Opened with the server.');
+                $("#lbStartGameMsg").text('');
             }, false);
 
             socket.addEventListener("close", function (evt) {
                 gameState = "disconnected";
                 writeMessage('Connection was closed.' + evt.reason);
-                resetGame();
+                //$("#lbStartGameMsg").text('等待重新連線');
+                //resetGame();
             }, false);
 
             socket.addEventListener("message", function (evt) {
@@ -131,7 +134,9 @@
             $("#divJoyStick").hide();
 
             context.clearRect(0, 0, canvas.width, canvas.height);
-            rerender = true;
+
+
+            setTimeout(initSocket, 1000);
         }
 
         function onMessage(data) {
