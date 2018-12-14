@@ -97,12 +97,12 @@
 
             socket.addEventListener("open", function (evt) {
                 gameState = "connected";
-                $("#divHistory").prepend('Connection Opened with the server.<br />');
+                writeMessage('Connection Opened with the server.');
             }, false);
 
             socket.addEventListener("close", function (evt) {
                 gameState = "disconnected";
-                $("#divHistory").prepend('Connection was closed.' + evt.reason + '<br />');
+                writeMessage('Connection was closed.' + evt.reason);
                 resetGame();
             }, false);
 
@@ -112,7 +112,7 @@
 
             socket.addEventListener("error", function (evt) {
                 gameState = "disconnected";
-                $("#divHistory").prepend('Error.' + evt.message + '<br />');
+                writeMessage('Error.' + evt.message);
             }, false);
         }
 
@@ -135,7 +135,7 @@
             switch (data.Header) {
                 case "NewPlayer":
                     onNewPlayer(data);
-                    $("#divHistory").prepend(data.Player.Name + ' has entered the game.<br />');
+                    writeMessage(data.Player.Name + ' has entered the game.');
                     break;
                 case "NewPlayerOK":
                     gameState = "gaming";
@@ -149,18 +149,18 @@
                     break;
                 case "AllPlayers":
                     onAllPlayers(data);
-                    $("#divHistory").prepend('Received all players. Count:' + allPlayers.length + '.<br />');
+                    writeMessage('Received all players. Count:' + allPlayers.length + '.');
                     break;
                 case "Talk":
                     onTalk(data);
-                    $("#divHistory").prepend(data.Name + ': ' + data.Message + '.<br />');
+                    writeMessage(data.Name + ': ' + data.Message + '.');
                     break;
                 case "Move":
                     onPlayerMove(data);
                     break;
                 case "GameOver":
                     onGameOver(data);
-                    $("#divHistory").prepend(data.Player.Name + ' has left the game.<br />');
+                    writeMessage(data.Player.Name + ' has left the game.');
                     break;
             }
         }
@@ -194,8 +194,6 @@
                     Message: $("#ipChatMessage").val()
                 });
                 $("#ipChatMessage").val("");
-                $("#ipChatMessage").blur();
-                $("#cvMain").focus();
             }
         }
 
@@ -458,6 +456,11 @@
             var b = Math.floor(Math.random() * 256).toString(16);
 
             return "#" + r + g + b;
+        }
+
+        function writeMessage(text) {
+            $("#divHistory").append(text + '<br />');
+            $("#divHistory").scrollTop($("#divHistory").height() + 50);
         }
 
         function send(obj) {
