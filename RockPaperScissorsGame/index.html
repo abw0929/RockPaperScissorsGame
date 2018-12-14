@@ -46,7 +46,9 @@
         <input id="ipStartGame" type="button" value="開始遊戲" onclick="sendStartGame();" />
         <label id="lbStartGameMsg" style="color: red;"></label>
     </div>
-    <div id="divHistory" class="noGap" style="width: 300px; height: 150px; overflow-y: auto; overflow-x: hidden; position: absolute; top: 10px; left: 10px; z-index: 2;"></div>
+    <div id="divHistoryFrame" class="noGap" style="width: 300px; height: 150px; overflow-x: hidden; overflow-y: auto;position: absolute; top: 10px; left: 10px; z-index: 2;">
+        <div id="divHistory" class="noGap"></div>
+    </div>
     <div id="divChat" class="noGap" style="width: 300px; position: absolute; bottom: 40px; left: 20px; display: none; z-index: 3;">
         <input id="ipChatMessage" type="text" style="width: 200px;" maxlength="60" />&nbsp;&nbsp;
         <input id="ipChatSend" type="button" value="送出" onclick="sendChat();" />
@@ -128,6 +130,7 @@
             $("#divChat").fadeOut(200);
             $("#divJoyStick").hide();
 
+            context.clearRect(0, 0, canvas.width, canvas.height);
             rerender = true;
         }
 
@@ -166,6 +169,11 @@
         }
 
         function sendStartGame() {
+
+            if (gameState !== "connected" && socket.readyState === socket.CLOSED) {
+                initSocket();
+            }
+
             if (gameState === "connected" && $("#ipName").val() !== "") {
 
                 var myPos = getRandomPos();
@@ -261,7 +269,7 @@
             var transX = canvas.width / 2 - myReceiveX;
             var transY = canvas.height / 2 - myReceiveY;
 
-            context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+            context.clearRect(0, 0, canvas.width, canvas.height);
             context.translate(transX, transY);
 
             context.beginPath();
@@ -460,7 +468,7 @@
 
         function writeMessage(text) {
             $("#divHistory").append(text + '<br />');
-            $("#divHistory").scrollTop($("#divHistory").height() + 50);
+            $("#divHistoryFrame").scrollTop($("#divHistory").height() + 50);
         }
 
         function send(obj) {
