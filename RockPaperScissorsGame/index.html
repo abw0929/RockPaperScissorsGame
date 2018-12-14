@@ -36,7 +36,7 @@
 
     <div id="divJoyStick" style="display: none;"></div>
     <canvas id="cvMain" style="position: absolute; top: 0;"></canvas>
-    <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top: 200px; left: calc(50% - 160px); z-index: 2;">
+    <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top: 200px; left: calc(50% - 160px); z-index: 3;">
         玩家名字：<input id="ipName" type="text" /><br />
         玩家性別：<input id="ipGenderMale" name="ipGender" type="radio" value="Male" checked="checked" />男
                   <input id="ipGenderFemale" name="ipGender" type="radio" value="Female" />女<br />
@@ -46,8 +46,8 @@
         <input id="ipStartGame" type="button" value="開始遊戲" onclick="sendStartGame();" />
         <label id="lbStartGameMsg" style="color: red;"></label>
     </div>
-    <div id="divHistory" class="noGap" style="width: 300px; height: 200px; overflow-y: auto; overflow-x: hidden; position: absolute; top: 10px; left: 10px;"></div>
-    <div id="divChat" class="noGap" style="width: 300px; position: absolute; bottom: 40px; left: 20px; display: none; z-index: 2;">
+    <div id="divHistory" class="noGap" style="width: 300px; height: 150px; overflow-y: auto; overflow-x: hidden; position: absolute; top: 10px; left: 10px; z-index: 2;"></div>
+    <div id="divChat" class="noGap" style="width: 300px; position: absolute; bottom: 40px; left: 20px; display: none; z-index: 3;">
         <input id="ipChatMessage" type="text" style="width: 200px;" maxlength="60" />&nbsp;&nbsp;
         <input id="ipChatSend" type="button" value="送出" onclick="sendChat();" />
     </div>
