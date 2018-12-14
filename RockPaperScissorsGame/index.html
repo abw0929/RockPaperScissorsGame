@@ -36,8 +36,8 @@
 
     <div id="divJoyStick" style="display: none;"></div>
     <canvas id="cvMain" style="position: absolute; top: 0;"></canvas>
-    <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top: 200px; left: calc(50% - 160px); z-index: 3;">
-        玩家名字：<input id="ipName" type="text" /><br />
+    <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top:  calc(50% - 80px); left: calc(50% - 160px); z-index: 3;">
+        玩家名字：<input id="ipName" type="text" maxlength="30" /><br />
         玩家性別：<input id="ipGenderMale" name="ipGender" type="radio" value="Male" checked="checked" />男
                   <input id="ipGenderFemale" name="ipGender" type="radio" value="Female" />女<br />
         頭髮顏色：<input id="ipHairColor" type="color" /><br />
@@ -47,7 +47,7 @@
         <label id="lbStartGameMsg" style="color: red;"></label>
     </div>
     <div id="divHistoryFrame" class="noGap" style="width: 300px; height: 150px; overflow-x: hidden; overflow-y: auto;position: absolute; top: 10px; left: 10px; z-index: 2;">
-        <div id="divHistory" class="noGap"></div>
+        <div id="divHistory" class="noGap" style="width: 300px; word-wrap: break-word;"></div>
     </div>
     <div id="divChat" class="noGap" style="width: 300px; position: absolute; bottom: 40px; left: 20px; display: none; z-index: 3;">
         <input id="ipChatMessage" type="text" style="width: 200px;" maxlength="60" />&nbsp;&nbsp;
@@ -138,32 +138,24 @@
             switch (data.Header) {
                 case "NewPlayer":
                     onNewPlayer(data);
-                    writeMessage(data.Player.Name + ' has entered the game.');
                     break;
                 case "NewPlayerOK":
-                    gameState = "gaming";
-                    myId = data.Id;
-                    $("#divNewPlayer").fadeOut(200);
-                    $("#divChat").fadeIn(200);
-                    $("#divJoyStick").show();
+                    onNewPlayerOK(data);
                     break;
                 case "NewPlayerFail":
-                    $("#lbStartGameMsg").text('腳色名稱重複');
+                    onNewPlayerFail(data);
                     break;
                 case "AllPlayers":
                     onAllPlayers(data);
-                    writeMessage('Received all players. Count:' + allPlayers.length + '.');
                     break;
                 case "Talk":
                     onTalk(data);
-                    writeMessage(data.Name + ': ' + data.Message + '.');
                     break;
                 case "Move":
                     onPlayerMove(data);
                     break;
                 case "GameOver":
                     onGameOver(data);
-                    writeMessage(data.Player.Name + ' has left the game.');
                     break;
             }
         }
@@ -211,6 +203,9 @@
             for (var i = 0; i < players.length; i++) {
                 allPlayersMap[players[i].Id] = players[i];
             }
+
+            writeMessage('Received all players. Count:' + allPlayers.length + '.');
+
             rerender = true;
         }
 
@@ -221,6 +216,20 @@
                 allPlayers.push(player);
                 rerender = true;
             }
+
+            writeMessage(data.Player.Name + ' has entered the game.');
+        }
+
+        function onNewPlayerOK(data) {
+            gameState = "gaming";
+            myId = data.Id;
+            $("#divNewPlayer").fadeOut(200);
+            $("#divChat").fadeIn(200);
+            $("#divJoyStick").show();
+        }
+
+        function onNewPlayerFail(data) {
+            $("#lbStartGameMsg").text('腳色名稱重複');
         }
 
         function onPlayerMove(data) {
@@ -239,6 +248,7 @@
                 allPlayersMap[data.Id].Message = data.Message;
                 rerender = true;
             }
+            writeMessage(data.Name + ': ' + data.Message + '.');
         }
 
         function onGameOver(data) {
@@ -248,6 +258,7 @@
                 allPlayers.splice(index, 1);
                 rerender = true;
             }
+            writeMessage(data.Player.Name + ' has left the game.');
         }
 
         setInterval(function () {
@@ -256,6 +267,7 @@
 
             if (rerender)
                 renderMain();
+
             movePlayer();
 
         }, 40);
@@ -341,24 +353,26 @@
             context.fillRect(x - 4, y - 24, 1, 2);
             context.fillRect(x + 3, y - 24, 1, 2);   // eyes
 
+            var nameW = context.measureText(player.Name).width;
             if (player.IsMe === "True")
                 context.fillStyle = "red";
             else
                 context.fillStyle = "black";
-            context.fillText(player.Name, x - 15, y + 15);
+            context.fillText(player.Name, x - nameW / 2, y + 15);
 
             if (player.Message !== null && player.Message.trim() !== "") {
                 var text = player.Message;
-                var w = context.measureText(text).width;
+                var textW = context.measureText(text).width;
+                var textX = x - textW / 2;
 
                 context.fillStyle = "white";
-                context.fillRect(x - 25, y - 75, w + 10, 25);
+                context.fillRect(textX - 5, y - 75, textW + 10, 25);
 
                 context.fillStyle = "black";
-                context.fillText(text, x - 20, y - 60);
+                context.fillText(text, textX, y - 60);
 
                 context.beginPath();
-                context.rect(x - 25, y - 75, w + 10, 25);
+                context.rect(textX - 5, y - 75, textW + 10, 25);
                 context.stroke();
             }
         }
@@ -459,9 +473,9 @@
         }
 
         function getRandomColor() {
-            var r = Math.floor(Math.random() * 256).toString(16);
-            var g = Math.floor(Math.random() * 256).toString(16);
-            var b = Math.floor(Math.random() * 256).toString(16);
+            var r = Math.floor(Math.random() * 256).toString(16).padStart(2,"0");
+            var g = Math.floor(Math.random() * 256).toString(16).padStart(2,"0");
+            var b = Math.floor(Math.random() * 256).toString(16).padStart(2,"0");
 
             return "#" + r + g + b;
         }
