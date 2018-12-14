@@ -265,10 +265,10 @@
             if (gameState !== "gaming")
                 return;
 
+            movePlayer();
+
             if (rerender)
                 renderMain();
-
-            movePlayer();
 
         }, 40);
 
