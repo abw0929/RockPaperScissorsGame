@@ -11,11 +11,11 @@ namespace RockPaperScissorsGame.WebSocket
 {
     public class MyWebSocket : WebSocketHandler
     {
-        private string Id;
+        private string myId;
         public override void OnOpen()
         {
-            Id = Guid.NewGuid().ToString();
-            bool ret = MessageControl.AddClient(Id, this);
+            myId = Guid.NewGuid().ToString();
+            bool ret = MessageControl.AddClient(myId, this);
 
             if(!ret)
             {
@@ -31,19 +31,19 @@ namespace RockPaperScissorsGame.WebSocket
 
         public override void OnClose()
         {
-            MessageControl.OnClose(Id);
-            MessageControl.RemoveClient(Id);
+            MessageControl.OnClose(myId);
+            MessageControl.RemoveClient(myId);
         }
 
         public override void OnError()
         {
-            MessageControl.SendError(new MessageError { Header = "Error", Message = Error.Message });
+            MessageControl.SendError(new MessageError { Header = "Error", Id = myId, Message = Error.Message });
         }
 
         private string SetMessageId(string message)
         {
             JObject jObj = JObject.Parse(message);
-            jObj["Id"] = Id;
+            jObj["Id"] = myId;
             return jObj.ToString();
         }
 

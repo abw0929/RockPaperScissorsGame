@@ -95,8 +95,8 @@
         });
 
         function initSocket() {
-            socket = new WebSocket("ws://teach.itpison.com/MyChatRoom/WebSocketServer.ashx");
-            //socket = new WebSocket("ws://localhost:49876/WebSocketServer.ashx");
+            //socket = new WebSocket("ws://teach.itpison.com/MyChatRoom/WebSocketServer.ashx");
+            socket = new WebSocket("ws://192.168.1.100/MyChatRoom/WebSocketServer.ashx");
 
             socket.addEventListener("open", function (evt) {
                 gameState = "connected";
@@ -107,8 +107,9 @@
             socket.addEventListener("close", function (evt) {
                 gameState = "disconnected";
                 writeMessage('Connection was closed.' + evt.reason);
-                //$("#lbStartGameMsg").text('等待重新連線');
-                //resetGame();
+                resetGame();
+                $("#lbStartGameMsg").text('等待重新連線');
+                setTimeout(initSocket, 1000);
             }, false);
 
             socket.addEventListener("message", function (evt) {
@@ -134,9 +135,6 @@
             $("#divJoyStick").hide();
 
             context.clearRect(0, 0, canvas.width, canvas.height);
-
-
-            setTimeout(initSocket, 1000);
         }
 
         function onMessage(data) {
