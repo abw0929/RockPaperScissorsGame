@@ -48,6 +48,20 @@ namespace RockPaperScissorsGame.Game
             GameFlowControl.SendTalk(msg);
         }
 
+        public static void OnHand(MessageHand msg)
+        {
+            msg.Name = playerControl.GetNameById(msg.Id);
+            playerControl.OnHand(msg.Id, msg.Hand);
+            GameFlowControl.SendHand(msg);
+        }
+
+        public static void OnScore(MessageScore msg)
+        {
+            msg.Name = playerControl.GetNameById(msg.Id);
+            playerControl.OnScore(msg.Id, msg.Score);
+            GameFlowControl.SendScore(msg);
+        }
+
         public static void OnGameOver(MessageGameOver msg)
         {
             if (msg.Player == null)

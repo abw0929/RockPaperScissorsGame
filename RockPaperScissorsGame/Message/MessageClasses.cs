@@ -40,6 +40,18 @@ namespace RockPaperScissorsGame.Message
         public string Message { get; set; }
     }
 
+    public class MessageHand : MessageBase
+    {
+        public string Name { get; set; }
+        public string Hand { get; set; }
+    }
+
+    public class MessageScore : MessageBase
+    {
+        public string Name { get; set; }
+        public int Score { get; set; }
+    }
+
     public class MessageError : MessageBase
     {
         public string Message { get; set; }

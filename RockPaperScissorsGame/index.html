@@ -22,7 +22,7 @@
             margin: 0;
             -webkit-user-select: none;
             -moz-user-select: none;
-            z-index: 1;
+            z-index: 2;
         }
 
         .noGap {
@@ -36,7 +36,7 @@
 
     <div id="divJoyStick" style="display: none;"></div>
     <canvas id="cvMain" style="position: absolute; top: 0;"></canvas>
-    <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top:  calc(50% - 80px); left: calc(50% - 160px); z-index: 3;">
+    <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top:  calc(50% - 80px); left: calc(50% - 160px); z-index: 4;">
         玩家名字：<input id="ipName" type="text" maxlength="30" /><br />
         玩家性別：<input id="ipGenderMale" name="ipGender" type="radio" value="Male" checked="checked" />男
                   <input id="ipGenderFemale" name="ipGender" type="radio" value="Female" />女<br />
@@ -46,20 +46,23 @@
         <input id="ipStartGame" type="button" value="開始遊戲" onclick="sendStartGame();" />
         <label id="lbStartGameMsg" style="color: red;"></label>
     </div>
-    <div id="divHistoryFrame" class="noGap" style="width: 300px; height: 150px; overflow-x: hidden; overflow-y: auto;position: absolute; top: 10px; left: 10px; z-index: 2;">
+    <div id="divHistoryFrame" class="noGap" style="width: 300px; height: 150px; overflow-x: hidden; overflow-y: auto;position: absolute; top: 10px; left: 10px; z-index: 3; display: none;">
         <div id="divHistory" class="noGap" style="width: 300px; word-wrap: break-word;"></div>
     </div>
-    <div id="divChat" class="noGap" style="width: 300px; position: absolute; bottom: 40px; left: 20px; display: none; z-index: 3;">
+    <div id="divChat" class="noGap" style="width: 300px; position: absolute; bottom: 40px; left: 20px; display: none; z-index: 4;">
         <input id="ipChatMessage" type="text" style="width: 200px;" maxlength="60" />&nbsp;&nbsp;
         <input id="ipChatSend" type="button" value="送出" onclick="sendChat();" />
+    </div>
+    <div id="divScore" class="noGap" style="width: 300px; height: 150px; overflow-x: hidden; overflow-y: auto;position: absolute; top: 10px; left: 10px; z-index: 3;">
     </div>
     
     <script src="Scripts/jquery-3.3.1.min.js"></script>
     <script src="Scripts/virtualjoystick.js"></script>
     <script>
         var socket;
-        var myId;
+        var mePlayer = {};
         var allPlayers = [];
+        var allPlayersScore = [];
         var allPlayersMap = {};
         var allTalksMap = {};
 
@@ -75,13 +78,15 @@
         var moveLeft = false;
         var moveRight = false;
 
+        var handCountDown = 0;
+
         var roomW = 1000;
         var roomH = 1000;
 
-        var myX = 0;
-        var myY = 0;
         var myReceiveX = 0;
         var myReceiveY = 0;
+
+        var collidePool = {};
 
         var joystick = new VirtualJoystick({
             container: document.getElementById('divJoyStick'),
@@ -95,7 +100,8 @@
         });
 
         function initSocket() {
-            socket = new WebSocket("ws://teach.itpison.com/MyChatRoom/WebSocketServer.ashx");
+            //socket = new WebSocket("ws://teach.itpison.com/MyChatRoom/WebSocketServer.ashx");
+            socket = new WebSocket("ws://localhost:49876/WebSocketServer.ashx");
 
             socket.addEventListener("open", function (evt) {
                 gameState = "connected";
@@ -124,11 +130,12 @@
         }
 
         function resetGame() {
-            myId = "";
+            mePlayer = {};
             gameState = "none";
             $("#divNewPlayer").fadeIn(200);
             $("#divChat").fadeOut(200);
             $("#divJoyStick").hide();
+            $("#divScore").html("");
 
             context.clearRect(0, 0, canvas.width, canvas.height);
             rerender = true;
@@ -154,6 +161,12 @@
                 case "Move":
                     onPlayerMove(data);
                     break;
+                case "Hand":
+                    onPlayerHand(data);
+                    break;
+                case "Score":
+                    onPlayerScore(data);
+                    break;
                 case "GameOver":
                     onGameOver(data);
                     break;
@@ -162,36 +175,38 @@
 
         function sendStartGame() {
 
-            if (gameState !== "connected" && socket.readyState === socket.CLOSED) {
-                initSocket();
-            }
-
             if (gameState === "connected" && $("#ipName").val() !== "") {
 
                 var myPos = getRandomPos();
-                myX = myReceiveX = myPos.X;
-                myY = myReceiveY = myPos.Y;
+                myReceiveX = myPos.X;
+                myReceiveY = myPos.Y;
+
+                mePlayer = {
+                    Name: $("#ipName").val(),
+                    Gender: $('input[name=ipGender]:checked').val(),
+                    HairColor: $("#ipHairColor").val(),
+                    BodyColor: $("#ipBodyColor").val(),
+                    Score: 0,
+                    IsMe: "False",
+                    Pos: myPos,
+                    Hand: getRandomHand(),
+                };
 
                 send({
                     Header: "NewPlayer",
-                    Player: {
-                        Name: $("#ipName").val(),
-                        Gender: $('input[name=ipGender]:checked').val(),
-                        HairColor: $("#ipHairColor").val(),
-                        BodyColor: $("#ipBodyColor").val(),
-                        Score: "0",
-                        IsMe: "False",
-                        Pos: myPos,
-                    }
+                    Player: mePlayer,
                 });
             }
         }
 
         function sendChat() {
             if (gameState === "gaming" && $("#ipChatMessage").val() !== "") {
+
+                mePlayer.Message = $("#ipChatMessage").val();
+
                 send({
                     Header: "Talk",
-                    Message: $("#ipChatMessage").val()
+                    Message: mePlayer.Message,
                 });
                 $("#ipChatMessage").val("");
             }
@@ -200,9 +215,12 @@
         function onAllPlayers(data) {
             var players = data.Players;
             allPlayers = players;
+            allPlayersScore = players.slice(0);
             for (var i = 0; i < players.length; i++) {
                 allPlayersMap[players[i].Id] = players[i];
             }
+
+            showPlayerScore();
 
             writeMessage('Received all players. Count:' + allPlayers.length + '.');
 
@@ -214,7 +232,10 @@
             if (!allPlayersMap.hasOwnProperty(data.Id)) {
                 allPlayersMap[data.Id] = player;
                 allPlayers.push(player);
+                allPlayersScore.push(player);
                 rerender = true;
+
+                showPlayerScore()
             }
 
             writeMessage(data.Player.Name + ' has entered the game.');
@@ -222,10 +243,12 @@
 
         function onNewPlayerOK(data) {
             gameState = "gaming";
-            myId = data.Id;
+            mePlayer.Id = data.Id;
             $("#divNewPlayer").fadeOut(200);
             $("#divChat").fadeIn(200);
             $("#divJoyStick").show();
+
+            handCountDown = getRandomCountDown();
         }
 
         function onNewPlayerFail(data) {
@@ -235,11 +258,26 @@
         function onPlayerMove(data) {
             if (allPlayersMap.hasOwnProperty(data.Id)) {
                 allPlayersMap[data.Id].Pos = data.To;
-                if (data.Id === myId) {
+                if (data.Id === mePlayer.Id) {
                     myReceiveX = data.To.X;
                     myReceiveY = data.To.Y;
                 }
                 rerender = true;
+            }
+        }
+
+        function onPlayerHand(data) {
+            if (allPlayersMap.hasOwnProperty(data.Id)) {
+                allPlayersMap[data.Id].Hand = data.Hand;
+                rerender = true;
+            }
+            writeMessage(data.Name + ' Plays ' + data.Hand + '.');
+        }
+
+        function onPlayerScore(data) {
+            if (allPlayersMap.hasOwnProperty(data.Id)) {
+                allPlayersMap[data.Id].Score = data.Score;
+                showPlayerScore();
             }
         }
 
@@ -256,6 +294,10 @@
                 delete allPlayersMap[data.Id];
                 var index = allPlayers.map(function (e) { return e.Id; }).indexOf(data.Id);
                 allPlayers.splice(index, 1);
+                index = allPlayersScore.map(function (e) { return e.Id; }).indexOf(data.Id);
+                allPlayersScore.splice(index, 1);
+
+                showPlayerScore();
                 rerender = true;
             }
             writeMessage(data.Player.Name + ' has left the game.');
@@ -268,7 +310,9 @@
             if (rerender)
                 renderMain();
 
+            playHand();
             movePlayer();
+            checkCollide();
 
         }, 40);
 
@@ -325,10 +369,22 @@
             );
         }
 
+        function sortPlayersByScore() {
+            allPlayersScore.sort(
+                function (a, b) {
+                    if (a.Score < b.Score)
+                        return 1;
+                    if (a.Score > b.Score)
+                        return -1;
+                    return 0;
+                }
+            );
+        }
+
         function drawPlayer(player) {
             var x = player.Pos.X;
             var y = player.Pos.Y;
-            //context.filter = "drop-shadow(0px 0px 4px black)";
+
             context.fillStyle = "black";
             context.fillRect(x - 6, y - 19, 12, 17);
             context.fillRect(x - 8, y - 33, 16, 16); // outline
@@ -360,6 +416,10 @@
                 context.fillStyle = "black";
             context.fillText(player.Name, x - nameW / 2, y + 15);
 
+            var scoreW = context.measureText(player.Score).width;
+            context.fillStyle = "red";
+            context.fillText(player.Score, x - scoreW / 2, y - 38);
+
             if (player.Message !== null && player.Message.trim() !== "") {
                 var text = player.Message;
                 var textW = context.measureText(text).width;
@@ -375,6 +435,74 @@
                 context.rect(textX - 5, y - 75, textW + 10, 25);
                 context.stroke();
             }
+
+            if (player.Hand !== null && player.Hand.trim() !== "") {
+                switch (player.Hand) {
+                    case "Rock":
+                        drawRock(player.Pos.X, player.Pos.Y);
+                        break;
+                    case "Paper":
+                        drawPaper(player.Pos.X, player.Pos.Y);
+                        break;
+                    case "Scissors":
+                        drawScissors(player.Pos.X, player.Pos.Y);
+                        break;
+                }
+            }
+        }
+
+        function drawRock(x, y) {
+            context.fillStyle = "white";
+            context.fillRect(x - 45, y - 30, 25, 25);
+
+            context.fillStyle = "black";
+            context.fillRect(x - 38, y - 19, 12, 10);
+
+            context.fillStyle = "#fff1c1";
+            context.fillRect(x - 37, y - 18, 10, 8);
+
+            context.beginPath();
+            context.strokeStyle = "black";
+            context.rect(x - 45, y - 30, 25, 25);
+            context.stroke();
+        }
+
+        function drawPaper(x, y) {
+            context.fillStyle = "white";
+            context.fillRect(x - 45, y - 30, 25, 25);
+
+            context.fillStyle = "black";
+            context.fillRect(x - 39, y - 26, 14, 16);
+            context.fillRect(x - 42, y - 19, 5, 6);
+
+            context.fillStyle = "#fff1c1";
+            context.fillRect(x - 38, y - 25, 12, 14);
+            context.fillRect(x - 41, y - 18, 3, 4);
+
+            context.beginPath();
+            context.strokeStyle = "black";
+            context.rect(x - 45, y - 30, 25, 25);
+            context.stroke();
+        }
+
+        function drawScissors(x, y) {
+            context.fillStyle = "white";
+            context.fillRect(x - 45, y - 30, 25, 25);
+
+            context.fillStyle = "black";
+            context.fillRect(x - 38, y - 19, 12, 10);
+            context.fillRect(x - 37, y - 27, 5, 11);
+            context.fillRect(x - 32, y - 27, 5, 11);
+
+            context.fillStyle = "#fff1c1";
+            context.fillRect(x - 37, y - 18, 10, 8);
+            context.fillRect(x - 36, y - 26, 3, 9);
+            context.fillRect(x - 31, y - 26, 3, 9);
+
+            context.beginPath();
+            context.strokeStyle = "black";
+            context.rect(x - 45, y - 30, 25, 25);
+            context.stroke();
         }
 
         function onKeyDown(event) {
@@ -425,32 +553,46 @@
 
         function movePlayer() {
 
-            var myFrom = { X: myX, Y: myY };
+            var myFrom = { X: mePlayer.Pos.X, Y: mePlayer.Pos.Y };
             var myTo = {};
             var moved = false;
 
-            if ((moveLeft || joystick.left()) && myX > 20) {
-                myX -= moveSpeed;
+            if ((moveLeft || joystick.left()) && mePlayer.Pos.X > 20) {
+                mePlayer.Pos.X -= moveSpeed;
                 moved = true;
-            } else if ((moveRight || joystick.right()) && myX < roomW - 20) {
-                myX += moveSpeed;
+            } else if ((moveRight || joystick.right()) && mePlayer.Pos.X < roomW - 20) {
+                mePlayer.Pos.X += moveSpeed;
                 moved = true;
             }
-            if ((moveUp || joystick.up()) && myY > 20) {
-                myY -= moveSpeed;
+            if ((moveUp || joystick.up()) && mePlayer.Pos.Y > 20) {
+                mePlayer.Pos.Y -= moveSpeed;
                 moved = true;
-            } else if ((moveDown || joystick.down()) && myY < roomH - 20) {
-                myY += moveSpeed;
+            } else if ((moveDown || joystick.down()) && mePlayer.Pos.Y < roomH - 20) {
+                mePlayer.Pos.Y += moveSpeed;
                 moved = true;
             }
 
-            myTo = { X: myX, Y: myY };
+            myTo = { X: mePlayer.Pos.X, Y: mePlayer.Pos.Y };
 
             if (moved) {
                 send({
                     Header: "Move",
                     From: myFrom,
                     To: myTo
+                });
+            }
+        }
+
+        function playHand() {
+            handCountDown--;
+
+            if (handCountDown <= 0) {
+                handCountDown = getRandomCountDown();
+                mePlayer.Hand = getRandomHand();
+
+                send({
+                    Header: "Hand",
+                    Hand: mePlayer.Hand,
                 });
             }
         }
@@ -480,9 +622,105 @@
             return "#" + r + g + b;
         }
 
+        function getRandomHand() {
+            var intHand = Math.floor(Math.random() * 3);
+            var strHand = "";
+            if (intHand == 0)
+                strHand = "Rock";
+            else if (intHand == 1)
+                strHand = "Paper";
+            else if (intHand == 2)
+                strHand = "Scissors";
+
+            return strHand;
+        }
+
+        function getRandomCountDown() {
+            return Math.floor(Math.random() * 200) + 50;
+        }
+
+        function onCollide(me, other) {
+            if ((me.Hand === "Rock" && other.Hand === "Scissors") ||
+                (me.Hand === "Scissors" && other.Hand === "Paper") ||
+                (me.Hand === "Paper" && other.Hand === "Rock")) {
+                mePlayer.Score += 1;
+
+                send({
+                    Header: "Score",
+                    Score: mePlayer.Score,
+                });
+            }
+            else if ((me.Hand === "Scissors" && other.Hand === "Rock") ||
+                (me.Hand === "Paper" && other.Hand === "Scissors") ||
+                (me.Hand === "Rock" && other.Hand === "Paper")) {
+                if (mePlayer.Score > 0) {
+                    mePlayer.Score -= 1;
+
+                    send({
+                        Header: "Score",
+                        Score: mePlayer.Score,
+                    });
+                }
+            }
+        }
+
+        function checkCollide() {
+            var player1 = allPlayersMap[mePlayer.Id];
+            for (var i = 0; i < allPlayers.length; i++) {
+
+                var player2 = allPlayers[i];
+
+                if (player1.Id !== player2.Id) {
+                    if (isCollide(player1, player2)) {
+                        if (!collidePool.hasOwnProperty(player2.Id)) {
+                            collidePool[player2.Id] = player2;
+                            onCollide(player1, player2);
+                        }
+                    } else {
+                        if (collidePool.hasOwnProperty(player2.Id)) {
+                            delete collidePool[player2.Id];
+                        }
+                    }
+                }
+            }
+        }
+
+        function isCollide(player1, player2) {
+            var x1 = player1.Pos.X - 8;
+            var y1 = player1.Pos.Y - 20;
+            var w1 = 16;
+            var h1 = 20;
+            var x2 = player2.Pos.X - 8;
+            var y2 = player2.Pos.Y - 20;
+            var w2 = 16;
+            var h2 = 20;
+
+            if (x1 < x2 + w2 &&
+                x1 + w1 > x2 &&
+                y1 < y2 + h2 &&
+                h1 + y1 > y2) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+
         function writeMessage(text) {
             $("#divHistory").append(text + '<br />');
             $("#divHistoryFrame").scrollTop($("#divHistory").height() + 50);
+        }
+
+        function showPlayerScore() {
+
+            sortPlayersByScore();
+
+            var strScores = "";
+            for (var i = 0; i < 10 && i < allPlayersScore.length; i++) {
+                strScores += "#" + (i + 1).toString().padStart(2, " ") + "&nbsp;&nbsp;" + allPlayersScore[i].Name + "&nbsp;&nbsp;&nbsp;" + allPlayersScore[i].Score + "<br />";
+            }
+
+            $("#divScore").html(strScores);
         }
 
         function send(obj) {

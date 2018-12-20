@@ -76,6 +76,18 @@ namespace RockPaperScissorsGame.Game
                 playersMap[id].Message = text;
         }
 
+        public void OnHand(string id, string hand)
+        {
+            if (playersMap.ContainsKey(id))
+                playersMap[id].Hand = hand;
+        }
+
+        public void OnScore(string id, int score)
+        {
+            if (playersMap.ContainsKey(id))
+                playersMap[id].Score = score;
+        }
+
         public void OnMove(string id, Coordinates pos)
         {
             if (playersMap.ContainsKey(id))

@@ -65,6 +65,16 @@ namespace RockPaperScissorsGame.Message
                         ReceiveTalk(message);
                         break;
                     }
+                case "Hand":
+                    {
+                        ReceiveHand(message);
+                        break;
+                    }
+                case "Score":
+                    {
+                        ReceiveScore(message);
+                        break;
+                    }
                 case "GameOver":
                     {
                         ReceiveTalk(message);
@@ -110,6 +120,18 @@ namespace RockPaperScissorsGame.Message
             GameFlowControl.ReceiveTalk(msg);
         }
 
+        public static void ReceiveHand(string message)
+        {
+            MessageHand msg = JsonConvert.DeserializeObject<MessageHand>(message);
+            GameFlowControl.ReceiveHand(msg);
+        }
+
+        public static void ReceiveScore(string message)
+        {
+            MessageScore msg = JsonConvert.DeserializeObject<MessageScore>(message);
+            GameFlowControl.ReceiveScore(msg);
+        }
+
         public static void ReceiveGameOver(string message)
         {
             MessageGameOver msg = JsonConvert.DeserializeObject<MessageGameOver>(message);
@@ -149,6 +171,18 @@ namespace RockPaperScissorsGame.Message
         }
 
         public static void SendTalk(MessageTalk message)
+        {
+            string jsonMessage = JsonConvert.SerializeObject(message);
+            SendMessage(jsonMessage);
+        }
+
+        public static void SendHand(MessageHand message)
+        {
+            string jsonMessage = JsonConvert.SerializeObject(message);
+            SendMessage(jsonMessage);
+        }
+
+        public static void SendScore(MessageScore message)
         {
             string jsonMessage = JsonConvert.SerializeObject(message);
             SendMessage(jsonMessage);

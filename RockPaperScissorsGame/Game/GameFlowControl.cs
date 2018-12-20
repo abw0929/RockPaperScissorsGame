@@ -26,6 +26,16 @@ namespace RockPaperScissorsGame.Game
             GameFlow.OnTalk(msg);
         }
 
+        public static void ReceiveHand(MessageHand msg)
+        {
+            GameFlow.OnHand(msg);
+        }
+
+        public static void ReceiveScore(MessageScore msg)
+        {
+            GameFlow.OnScore(msg);
+        }
+
         public static void ReceiveGameOver(MessageGameOver msg)
         {
             GameFlow.OnGameOver(msg);
@@ -54,6 +64,16 @@ namespace RockPaperScissorsGame.Game
         public static void SendTalk(MessageTalk msg)
         {
             MessageControl.SendTalk(msg);
+        }
+
+        public static void SendHand(MessageHand msg)
+        {
+            MessageControl.SendHand(msg);
+        }
+
+        public static void SendScore(MessageScore msg)
+        {
+            MessageControl.SendScore(msg);
         }
 
         public static void SendMove(MessageMove msg)
