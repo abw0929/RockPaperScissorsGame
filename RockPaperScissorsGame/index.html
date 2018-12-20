@@ -100,7 +100,7 @@
         });
 
         function initSocket() {
-            socket = new WebSocket("ws://teach.itpison.com/MyChatRoom/WebSocketServer.ashx");
+            socket = new WebSocket("ws://teach.itpison.com/RockPaperScissorsGame/WebSocketServer.ashx");
 
             socket.addEventListener("open", function (evt) {
                 gameState = "connected";
