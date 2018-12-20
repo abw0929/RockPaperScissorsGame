@@ -2,7 +2,8 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!--<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <title></title>
     <style>
 
@@ -29,7 +30,6 @@
             margin: 0px;
             padding: 0px;
         }
-
     </style>
 </head>
 <body>
@@ -100,18 +100,20 @@
         });
 
         function initSocket() {
-            //socket = new WebSocket("ws://teach.itpison.com/MyChatRoom/WebSocketServer.ashx");
-            socket = new WebSocket("ws://localhost:49876/WebSocketServer.ashx");
+            socket = new WebSocket("ws://teach.itpison.com/MyChatRoom/WebSocketServer.ashx");
 
             socket.addEventListener("open", function (evt) {
                 gameState = "connected";
                 writeMessage('Connection Opened with the server.');
+                $("#lbStartGameMsg").text('');
             }, false);
 
             socket.addEventListener("close", function (evt) {
                 gameState = "disconnected";
                 writeMessage('Connection was closed.' + evt.reason);
                 resetGame();
+                $("#lbStartGameMsg").text('等待重新連線');
+                setTimeout(initSocket, 1000);
             }, false);
 
             socket.addEventListener("message", function (evt) {
@@ -138,7 +140,6 @@
             $("#divScore").html("");
 
             context.clearRect(0, 0, canvas.width, canvas.height);
-            rerender = true;
         }
 
         function onMessage(data) {

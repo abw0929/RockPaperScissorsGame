@@ -77,7 +77,7 @@ namespace RockPaperScissorsGame.Message
                     }
                 case "GameOver":
                     {
-                        ReceiveTalk(message);
+                        ReceiveGameOver(message);
                         break;
                     }
             }
@@ -197,7 +197,7 @@ namespace RockPaperScissorsGame.Message
         public static void SendError(MessageError message)
         {
             string jsonMessage = JsonConvert.SerializeObject(message);
-            SendMessage(jsonMessage);
+            SendMessage(message.Id, jsonMessage);
         }
 
     }
