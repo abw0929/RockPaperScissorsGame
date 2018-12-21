@@ -39,7 +39,7 @@
     <div id="divNewPlayer" class="noGap" style="width: 300px; padding: 10px; border: 1px solid grey; background-color: white; position: absolute; top:  calc(50% - 80px); left: calc(50% - 160px); z-index: 4;">
         玩家名字：<input id="ipName" type="text" maxlength="30" /><br />
         玩家性別：<input id="ipGenderMale" name="ipGender" type="radio" value="Male" checked="checked" />男
-                  <input id="ipGenderFemale" name="ipGender" type="radio" value="Female" />女<br />
+        <input id="ipGenderFemale" name="ipGender" type="radio" value="Female" />女<br />
         頭髮顏色：<input id="ipHairColor" type="color" /><br />
         衣服顏色：<input id="ipBodyColor" type="color" /><br />
         <br />
@@ -55,9 +55,10 @@
     </div>
     <div id="divScore" class="noGap" style="width: 300px; height: 150px; overflow-x: hidden; overflow-y: auto;position: absolute; top: 10px; left: 10px; z-index: 3;">
     </div>
-    
+
     <script src="Scripts/jquery-3.3.1.min.js"></script>
     <script src="Scripts/virtualjoystick.js"></script>
+    <script src="Scripts/canvasanimation.js"></script>
     <script>
         var socket;
         var mePlayer = {};
@@ -121,7 +122,6 @@
             }, false);
 
             socket.addEventListener("error", function (evt) {
-                gameState = "disconnected";
                 writeMessage('Error.' + evt.message);
             }, false);
         }
@@ -157,7 +157,7 @@
                     onAllPlayers(data);
                     break;
                 case "Talk":
-                    onTalk(data);
+                    onPlayerTalk(data);
                     break;
                 case "Move":
                     onPlayerMove(data);
@@ -279,10 +279,12 @@
             if (allPlayersMap.hasOwnProperty(data.Id)) {
                 allPlayersMap[data.Id].Score = data.Score;
                 showPlayerScore();
+
+                rerender = true;
             }
         }
 
-        function onTalk(data) {
+        function onPlayerTalk(data) {
             if (allPlayersMap.hasOwnProperty(data.Id)) {
                 allPlayersMap[data.Id].Message = data.Message;
                 rerender = true;
@@ -308,14 +310,14 @@
             if (gameState !== "gaming")
                 return;
 
-            if (rerender)
-                renderMain();
+            //if (rerender)
+            renderMain();
 
             playHand();
             movePlayer();
             checkCollide();
 
-        }, 40);
+        }, 33);
 
         window.onkeydown = onKeyDown;
         window.onkeyup = onKeyUp;
@@ -353,9 +355,15 @@
                 drawPlayer(player);
             }
 
+            context.animationDrawLoop();
+
             context.setTransform(1, 0, 0, 1, 0, 0);
 
             rerender = false;
+        }
+
+        function renderAnimation() {
+            context.animationDrawLoop();
         }
 
         function sortPlayersByY() {
@@ -512,7 +520,7 @@
 
             if (event.keyCode === 37) { // 左
                 moveLeft = true;
-            }else if (event.keyCode === 39) { // 右
+            } else if (event.keyCode === 39) { // 右
                 moveRight = true;
             }
             if (event.keyCode === 38) { // 上
@@ -616,9 +624,9 @@
         }
 
         function getRandomColor() {
-            var r = Math.floor(Math.random() * 256).toString(16).padStart(2,"0");
-            var g = Math.floor(Math.random() * 256).toString(16).padStart(2,"0");
-            var b = Math.floor(Math.random() * 256).toString(16).padStart(2,"0");
+            var r = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+            var g = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
+            var b = Math.floor(Math.random() * 256).toString(16).padStart(2, "0");
 
             return "#" + r + g + b;
         }
@@ -650,6 +658,8 @@
                     Header: "Score",
                     Score: mePlayer.Score,
                 });
+
+                context.fillTextAnimation("+1", "black", mePlayer.Pos.X - 3, mePlayer.Pos.Y - 38, 1, mePlayer.Pos.X - 3, mePlayer.Pos.Y - 58, 0, 15);
             }
             else if ((me.Hand === "Scissors" && other.Hand === "Rock") ||
                 (me.Hand === "Paper" && other.Hand === "Scissors") ||
@@ -661,6 +671,8 @@
                         Header: "Score",
                         Score: mePlayer.Score,
                     });
+
+                    context.fillTextAnimation("-1", "black", mePlayer.Pos.X - 3, mePlayer.Pos.Y - 38, 1, mePlayer.Pos.X - 3, mePlayer.Pos.Y - 58, 0, 15);
                 }
             }
         }
@@ -674,8 +686,13 @@
                 if (player1.Id !== player2.Id) {
                     if (isCollide(player1, player2)) {
                         if (!collidePool.hasOwnProperty(player2.Id)) {
-                            collidePool[player2.Id] = player2;
+                            collidePool[player2.Id] = { Count: 0 };
                             onCollide(player1, player2);
+                        } else {
+                            if (collidePool[player2.Id].Count++ >= 5) {
+                                onCollide(player1, player2);
+                                collidePool[player2.Id].Count = 0;
+                            }
                         }
                     } else {
                         if (collidePool.hasOwnProperty(player2.Id)) {
@@ -718,7 +735,8 @@
 
             var strScores = "";
             for (var i = 0; i < 10 && i < allPlayersScore.length; i++) {
-                strScores += "#" + (i + 1).toString().padStart(2, " ") + "&nbsp;&nbsp;" + allPlayersScore[i].Name + "&nbsp;&nbsp;&nbsp;" + allPlayersScore[i].Score + "<br />";
+                strScores += "#" + (i + 1).toString().padStart(2, " ") + "&nbsp;&nbsp;";
+                strScores += allPlayersScore[i].Name + "&nbsp;&nbsp;&nbsp;" + allPlayersScore[i].Score + "<br />";
             }
 
             $("#divScore").html(strScores);
